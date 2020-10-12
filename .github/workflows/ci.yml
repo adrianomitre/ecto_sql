@@ -148,22 +148,27 @@ jobs:
           - elixir: 1.8.2
             otp: 20.3.8.26
             bionic_version: 20200403
-          - elixir: 1.9.4
+            pg_version: 9.5
+          - elixir: 1.8.2
             otp: 20.3.8.26
             bionic_version: 20200403
-          - elixir: 1.10.4
-            otp: 21.3.8.18
-            bionic_version: 20200630
-          - elixir: 1.11.0
-            otp: 21.3.8.18
-            bionic_version: 20200630
+            pg_version: 9.6
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+            bionic_version: 20200403
+            pg_version: 11
           - elixir: 1.11.0
             otp: 23.1.1
             bionic_version: 20200630
-
-        elixir: [1.11.0]
-        otp: [23.1.1]
-        bionic_version: [20200630]
+            pg_version: 9.5
+          - elixir: 1.11.0
+            otp: 23.1.1
+            bionic_version: 20200630
+            pg_version: 9.6
+          - elixir: 1.11.0
+            otp: 23.1.1
+            bionic_version: 20200630
+            pg_version: 11
 
     steps:
       - name: Install PG Client
