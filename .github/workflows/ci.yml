@@ -74,7 +74,7 @@ jobs:
       - run: MYSQL_URL=root:root@mysql ECTO_ADAPTER=myxql mix test
   
   test-mssql:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
 
     services:
       mssql:
