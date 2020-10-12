@@ -38,7 +38,7 @@ jobs:
       - run: mix test.as_a_dep
 
   test-mysql:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     services:
       mysql:
@@ -64,7 +64,7 @@ jobs:
           apt-get update
           apt-get install --allow-unauthenticated -y mysql-client
           mysql --version
-      - uses: actions/checkout@v2.3.1
+      - uses: actions/checkout@v2
       - name: Install Dependencies
         run: |
           apt-get install -y git
@@ -75,12 +75,6 @@ jobs:
   
   test-mssql:
     runs-on: ubuntu-latest
-    container:
-      image: hexpm/elixir:${{ matrix.elixir }}-erlang-${{ matrix.otp }}-ubuntu-bionic-${{ matrix.bionic_version }}
-      env:
-        ACCEPT_EULA: Y
-        MIX_ENV: test
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
 
     services:
       mssql:
@@ -92,29 +86,29 @@ jobs:
           - 1433:1433
 
     strategy:
-      fail-fast: false
       matrix:
         mssql_version: ["2017-latest", "2019-latest"]
-        elixir: [1.11.0]
-        otp: [23.1.1]
-        bionic_version: [20200630]
+        otp: [22.1.7]
+        elixir: [1.9.4]
         
+    env:
+      ACCEPT_EULA: Y
+      MIX_ENV: test
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - name: Install MsSql Client Tools
         run: |
-          apt-get update
-          apt-get install -y curl gnupg
-          curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list | tee /etc/apt/sources.list.d/msprod.list
-          apt-get update
-          apt-get install -y mssql-tools unixodbc-dev
-      - uses: actions/checkout@v2.3.1
+          sudo apt-get update
+          sudo apt-get install -y mssql-tools unixodbc-dev
+      - uses: actions/checkout@v2
+      - name: Setup elixir
+        uses: actions/setup-elixir@v1
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
       - name: Install Dependencies
-        run: |
-          apt-get install -y git
-          mix local.rebar --force
-          mix local.hex --force
-          mix deps.get
+        run: mix deps.get
       - run: |
           export PATH="/opt/mssql-tools/bin:$PATH"
           ECTO_ADAPTER=tds mix test
