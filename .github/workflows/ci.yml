@@ -3,14 +3,30 @@ on: [push, pull_request]
 jobs:
   test-elixir:
     runs-on: ubuntu-18.04
-    container: elixir:${{ matrix.elixir_version }}-slim
+    container: hexpm/elixir:${{ matrix.elixir }}-erlang-${{ matrix.otp }}-ubuntu-bionic-${{ matrix.bionic_version }}
 
     strategy:
+      fail-fast: false
       matrix:
-        elixir_version: ["1.8", "1.9", "1.10"]
+        include:
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+            bionic_version: 20200403
+          - elixir: 1.9.4
+            otp: 20.3.8.26
+            bionic_version: 20200403
+          - elixir: 1.10.4
+            otp: 21.3.8.18
+            bionic_version: 20200630
+          - elixir: 1.11.0
+            otp: 21.3.8.18
+            bionic_version: 20200630
+          - elixir: 1.11.0
+            otp: 23.1.1
+            bionic_version: 20200630
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.1
       - name: Install Dependencies
         run: |
           apt-get update
@@ -31,11 +47,13 @@ jobs:
           MYSQL_ROOT_PASSWORD: root
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
 
-    container: elixir:1.9-slim
+    container: elixir:${{ matrix.elixir_version }}-slim
 
     strategy:
+      fail-fast: false
       matrix:
         mysql_version: ["5.7", "8.0"]
+        elixir_version: ["1.8", "1.9", "1.10"]
 
     steps:
       - name: Install MySQL Client
@@ -47,7 +65,7 @@ jobs:
           apt-get update
           apt-get install --allow-unauthenticated -y mysql-client
           mysql --version
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Install Dependencies
         run: |
           apt-get install -y git
@@ -70,9 +88,19 @@ jobs:
 
     strategy:
       matrix:
-        mssql_version: ["2017-latest", "2019-latest"]
-        otp: [22.1.7]
-        elixir: [1.9.4]
+        include:
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+            mssql_version: "2017-latest"
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+            mssql_version: "2019-latest"
+          - elixir: 1.11.0
+            otp: 21.3.8.18
+            mssql_version: "2017-latest"
+          - elixir: 1.11.0
+            otp: 23.1.1
+            mssql_version: "2019-latest"
         
     env:
       ACCEPT_EULA: Y
@@ -108,23 +136,51 @@ jobs:
           POSTGRES_DB: postgres
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
-    container: elixir:1.9-slim
+    container:
+      image: hexpm/elixir:${{ matrix.elixir }}-erlang-${{ matrix.otp }}-ubuntu-bionic-${{ matrix.bionic_version }}
+      env:
+        DEBIAN_FRONTEND: noninteractive
 
     strategy:
+      fail-fast: false
       matrix:
-        pg_version: ["9.5", "9.6", "11"]
+        include:
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+            bionic_version: 20200403
+            pg_version: 9.5
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+            bionic_version: 20200403
+            pg_version: 9.6
+          - elixir: 1.8.2
+            otp: 20.3.8.26
+            bionic_version: 20200403
+            pg_version: 11
+          - elixir: 1.11.0
+            otp: 23.1.1
+            bionic_version: 20200630
+            pg_version: 9.5
+          - elixir: 1.11.0
+            otp: 23.1.1
+            bionic_version: 20200630
+            pg_version: 9.6
+          - elixir: 1.11.0
+            otp: 23.1.1
+            bionic_version: 20200630
+            pg_version: 11
 
     steps:
       - name: Install PG Client
         run: |
           apt-get update
-          apt-get install -y wget ca-certificates gnupg
-          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-          echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main ${{ matrix.pg_version }}" >> /etc/apt/sources.list.d/pgdg.list
+          apt-get install -y curl gnupg
+          curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+          echo "deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main ${{ matrix.pg_version }}" >> /etc/apt/sources.list.d/pgdg.list
           apt-get update
           apt-get install -y postgresql-${{ matrix.pg_version }} postgresql-contrib-${{ matrix.pg_version }}
           psql --version
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2.3.1
       - name: Install Dependencies
         run: |
           apt-get install -y git
