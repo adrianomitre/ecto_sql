@@ -2,7 +2,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   test-elixir:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     container: hexpm/elixir:${{ matrix.elixir }}-erlang-${{ matrix.otp }}-ubuntu-bionic-${{ matrix.bionic_version }}
 
     strategy:
@@ -75,7 +75,7 @@ jobs:
       - run: MYSQL_URL=root:root@mysql ECTO_ADAPTER=myxql mix test
   
   test-mssql:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     services:
       mssql:
@@ -115,7 +115,7 @@ jobs:
           ECTO_ADAPTER=tds mix test
           
   test-pg:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     services:
       pg:
