@@ -9,9 +9,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - elixir: 1.7.4
-            otp: 19.3.6.13
-            bionic_version: 20200403
           - elixir: 1.8.2
             otp: 20.3.8.26
             bionic_version: 20200403
@@ -19,10 +16,13 @@ jobs:
             otp: 20.3.8.26
             bionic_version: 20200403
           - elixir: 1.10.4
-            otp: 21.3.8.17
+            otp: 21.3.8.18
             bionic_version: 20200630
-          - elixir: 1.10.4
-            otp: 23.0.3
+          - elixir: 1.11.0
+            otp: 21.3.8.18
+            bionic_version: 20200630
+          - elixir: 1.11.0
+            otp: 23.1.1
             bionic_version: 20200630
 
     steps:
@@ -53,8 +53,8 @@ jobs:
       fail-fast: false
       matrix:
         mysql_version: ["5.7", "8.0"]
-        elixir: [1.10.4]
-        otp: [23.0.3]
+        elixir: [1.11.0]
+        otp: [23.1.1]
         bionic_version: [20200630]
 
     steps:
@@ -98,8 +98,8 @@ jobs:
       fail-fast: false
       matrix:
         mssql_version: ["2017-latest", "2019-latest"]
-        elixir: [1.10.4]
-        otp: [23.0.3]
+        elixir: [1.11.0]
+        otp: [23.1.1]
         bionic_version: [20200630]
         
     steps:
@@ -143,8 +143,8 @@ jobs:
       fail-fast: false
       matrix:
         pg_version: ["9.5", "9.6", "11"]
-        elixir: [1.10.4]
-        otp: [23.0.3]
+        elixir: [1.11.0]
+        otp: [23.1.1]
         bionic_version: [20200630]
 
     steps:

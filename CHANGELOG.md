@@ -1,5 +1,34 @@
 # Changelog for v3.x
 
+## v3.5.1 (2020-10-12)
+
+### Enhancements
+
+  * [tds] Support explain plan for the TDS adapter
+
+### Bug fix
+
+  * [migrations] Reload all migrations once the lock is free to avoid running the same migration more than once
+  * [query] Support nested subqueries
+
+## v3.5.0 (2020-10-03)
+
+### Enhancements
+
+  * [migrations] Add option to skip schema migrations table checks
+  * [migrations] Add `:migration_repo` configuration to allow a different repository to host the schema migrations
+  * [migrations] Support `validate: false` on references and constraints
+  * [migrations] Accept `:migration_primary_key` as false and add `:migration_foreign_key` repo config
+  * [postgres] Support for `:identity` key types in Postgres 10 or later
+  * [postgres] Use IF NOT EXIST when creating index with `create_if_not_exists`, this requires PG 9.5+ or later
+  * [repo] Support `Repo.explain(:all | :update_all | :delete_all, query)` for Ecto adapters
+  * [sandbox] Allow for dynamic repos to be checked out in sandbox
+
+### Bug fixes
+
+  * [migrations] Flush migration commands before executing `before_commit` callback
+  * [migrations] Do not swallow errors when migration lock is disabled
+
 ## v3.4.5 (2020-07-05)
 
 ### Bug fixes
@@ -12,7 +41,7 @@
 ### Enhancements
 
   * [sandbox] Add `Ecto.Adapters.SQL.start_owner!/2` and `Ecto.Adapters.SQL.stop_owner/1`
-  * [myxql] decode BIT columns when using MyXQL and `:boolean` type
+  * [myxql] Decode BIT columns when using MyXQL and `:boolean` type
   * [migrations] Use one line per migration in the schema dump
 
 ## v3.4.3 (2020-04-27)

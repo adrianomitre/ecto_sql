@@ -99,6 +99,9 @@ defmodule Ecto.Adapters.MyXQLTest do
 
     query = subquery("posts" |> select([r], %{x: r.x, z: r.y})) |> select([r], r) |> plan()
     assert all(query) == ~s{SELECT s0.`x`, s0.`z` FROM (SELECT sp0.`x` AS `x`, sp0.`y` AS `z` FROM `posts` AS sp0) AS s0}
+
+    query = subquery(subquery("posts" |> select([r], %{x: r.x, z: r.y})) |> select([r], r)) |> select([r], r) |> plan()
+    assert all(query) == ~s{SELECT s0.`x`, s0.`z` FROM (SELECT ss0.`x` AS `x`, ss0.`z` AS `z` FROM (SELECT ssp0.`x` AS `x`, ssp0.`y` AS `z` FROM `posts` AS ssp0) AS ss0) AS s0}
   end
 
   test "CTE" do
@@ -541,13 +544,13 @@ defmodule Ecto.Adapters.MyXQLTest do
     query = "comments" |> where([c], c.post_id in subquery(posts)) |> select([c], c.x) |> plan()
     assert all(query) ==
            ~s{SELECT c0.`x` FROM `comments` AS c0 } <>
-           ~s{WHERE (c0.`post_id` IN (SELECT sp0.`id` AS `id` FROM `posts` AS sp0 WHERE (sp0.`title` = ?)))}
+           ~s{WHERE (c0.`post_id` IN (SELECT sp0.`id` FROM `posts` AS sp0 WHERE (sp0.`title` = ?)))}
 
     posts = subquery("posts" |> where(title: parent_as(:comment).subtitle) |> select([p], p.id))
     query = "comments" |> from(as: :comment) |> where([c], c.post_id in subquery(posts)) |> select([c], c.x) |> plan()
     assert all(query) ==
            ~s{SELECT c0.`x` FROM `comments` AS c0 } <>
-           ~s{WHERE (c0.`post_id` IN (SELECT sp0.`id` AS `id` FROM `posts` AS sp0 WHERE (sp0.`title` = c0.`subtitle`)))}
+           ~s{WHERE (c0.`post_id` IN (SELECT sp0.`id` FROM `posts` AS sp0 WHERE (sp0.`title` = c0.`subtitle`)))}
   end
 
   test "having" do
@@ -1339,8 +1342,18 @@ defmodule Ecto.Adapters.MyXQLTest do
       assert execute_ddl(create)
     end
 
+    assert_raise ArgumentError, "MySQL adapter does not support check constraints", fn ->
+      create = {:create, constraint(:products, "foo", check: "price", validate: false)}
+      assert execute_ddl(create)
+    end
+
     assert_raise ArgumentError, "MySQL adapter does not support exclusion constraints", fn ->
       create = {:create, constraint(:products, "bar", exclude: "price")}
+      assert execute_ddl(create)
+    end
+
+    assert_raise ArgumentError, "MySQL adapter does not support exclusion constraints", fn ->
+      create = {:create, constraint(:products, "bar", exclude: "price", validate: false)}
       assert execute_ddl(create)
     end
   end

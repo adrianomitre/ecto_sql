@@ -9,6 +9,7 @@ defmodule Ecto.Adapters.SQL do
 
     * `Ecto.Adapters.Postgres` for Postgres
     * `Ecto.Adapters.MyXQL` for MySQL
+    * `Ecto.Adapters.Tds` for SQLServer
 
   ## Migrations
 
@@ -58,10 +59,6 @@ defmodule Ecto.Adapters.SQL do
 
     * `:driver` (required) - the database driver library.
       For example: `:postgrex`
-    * `:migration_lock` - the lock to use on migration locks.
-      For example: "FOR UPDATE". It may also be `nil` (for no lock).
-      The user can still override this by setting `:migration_lock`
-      in the repository configuration
 
   """
 
@@ -79,7 +76,6 @@ defmodule Ecto.Adapters.SQL do
       opts = unquote(opts)
       @conn __MODULE__.Connection
       @driver Keyword.fetch!(opts, :driver)
-      @migration_lock Keyword.get(opts, :migration_lock)
 
       @impl true
       defmacro __before_compile__(env) do
@@ -102,13 +98,11 @@ defmodule Ecto.Adapters.SQL do
       end
 
       @impl true
-      def loaders({:embed, _}, type), do: [&Ecto.Type.embedded_load(type, &1, :json)]
       def loaders({:map, _}, type),   do: [&Ecto.Type.embedded_load(type, &1, :json)]
       def loaders(:binary_id, type),  do: [Ecto.UUID, type]
       def loaders(_, type),           do: [type]
 
       @impl true
-      def dumpers({:embed, _}, type), do: [&Ecto.Type.embedded_dump(type, &1, :json)]
       def dumpers({:map, _}, type),   do: [&Ecto.Type.embedded_dump(type, &1, :json)]
       def dumpers(:binary_id, type),  do: [type, Ecto.UUID]
       def dumpers(_, type),           do: [type]
@@ -197,14 +191,9 @@ defmodule Ecto.Adapters.SQL do
         Ecto.Adapters.SQL.execute_ddl(meta, @conn, definition, opts)
       end
 
-      @impl true
-      def lock_for_migrations(meta, query, opts, fun) do
-        Ecto.Adapters.SQL.lock_for_migrations(meta, query, opts, @migration_lock, fun)
-      end
-
       defoverridable [prepare: 2, execute: 5, insert: 6, update: 6, delete: 4, insert_all: 7,
                       execute_ddl: 3, loaders: 2, dumpers: 2, autogenerate: 1,
-                      ensure_all_started: 2, lock_for_migrations: 4, __before_compile__: 1]
+                      ensure_all_started: 2, __before_compile__: 1]
     end
   end
 
@@ -252,11 +241,11 @@ defmodule Ecto.Adapters.SQL do
   ## Examples
 
       # Postgres
-      iex> Ecto.Adapters.SQL.explain(:all, Repo, Post)
+      iex> Ecto.Adapters.SQL.explain(Repo, :all, Post)
       "Seq Scan on posts p0  (cost=0.00..12.12 rows=1 width=443)"
 
       # MySQL
-      iex> Ecto.Adapters.SQL.explain(:all, from(p in Post, where: p.title == "title")) |> IO.puts()
+      iex> Ecto.Adapters.SQL.explain(Repo, :all, from(p in Post, where: p.title == "title")) |> IO.puts()
       +----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
       | id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
       +----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
@@ -264,12 +253,12 @@ defmodule Ecto.Adapters.SQL do
       +----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
 
       # Shared opts
-      iex> Ecto.Adapters.SQL.explain(:all, Repo, Post, analyze: true, timeout: 20_000)
+      iex> Ecto.Adapters.SQL.explain(Repo, :all, Post, analyze: true, timeout: 20_000)
       "Seq Scan on posts p0  (cost=0.00..11.70 rows=170 width=443) (actual time=0.013..0.013 rows=0 loops=1)\\nPlanning Time: 0.031 ms\\nExecution Time: 0.021 ms"
 
   It's safe to execute it for updates and deletes, no data change will be commited:
 
-      iex> Ecto.Adapters.SQL.explain(:update_all, Repo, from(p in Post, update: [set: [title: "new title"]]))
+      iex> Ecto.Adapters.SQL.explain(Repo, :update_all, from(p in Post, update: [set: [title: "new title"]]))
       "Update on posts p0  (cost=0.00..11.70 rows=170 width=449)\\n  ->  Seq Scan on posts p0  (cost=0.00..11.70 rows=170 width=449)"
 
   This function is also available under the repository with name `explain`:
@@ -447,6 +436,74 @@ defmodule Ecto.Adapters.SQL do
     {query, params} = sql.table_exists_query(table)
     query!(adapter_meta, query, params, []).num_rows != 0
   end
+
+
+  @doc """
+  Returns a formatted table for a given query `result`.
+
+
+  ## Examples
+
+      iex> Ecto.Adapters.SQL.format_table(query) |> IO.puts()
+      +---------------+---------+--------+
+      | title         | counter | public |
+      +---------------+---------+--------+
+      | My Post Title |       1 | NULL   |
+      +---------------+---------+--------+
+
+  """
+  @spec format_table(%{columns: [String.t] | nil, rows: [term()] | nil}) :: String.t
+  def format_table(result)
+
+  def format_table(nil), do: ""
+  def format_table(%{columns: nil}), do: ""
+  def format_table(%{columns: []}), do: ""
+  def format_table(%{columns: columns, rows: nil}), do: format_table(%{columns: columns, rows: []})
+
+  def format_table(%{columns: columns, rows: rows}) do
+    column_widths =
+      [columns | rows]
+      |> List.zip()
+      |> Enum.map(&Tuple.to_list/1)
+      |> Enum.map(fn column_with_rows ->
+        column_with_rows |> Enum.map(&binary_length/1) |> Enum.max()
+      end)
+
+    [
+      separator(column_widths),
+      "\n",
+      cells(columns, column_widths),
+      "\n",
+      separator(column_widths),
+      "\n",
+      Enum.map(rows, &cells(&1, column_widths) ++ ["\n"]),
+      separator(column_widths)
+    ]
+    |> IO.iodata_to_binary()
+  end
+
+
+  defp binary_length(nil), do: 4 # NULL
+  defp binary_length(binary) when is_binary(binary), do: String.length(binary)
+  defp binary_length(other), do: other |> inspect() |> String.length()
+
+  defp separator(widths) do
+    Enum.map(widths, & [?+, ?-, String.duplicate("-", &1), ?-]) ++ [?+]
+  end
+
+  defp cells(items, widths) do
+    cell =
+      [items, widths]
+      |> List.zip()
+      |> Enum.map(fn {item, width} -> [?|, " ", format_item(item, width) , " "] end)
+
+    [cell | [?|]]
+  end
+
+  defp format_item(nil, width), do: String.pad_trailing("NULL", width)
+  defp format_item(item, width) when is_binary(item), do: String.pad_trailing(item, width)
+  defp format_item(item, width) when is_number(item), do: item |> inspect() |> String.pad_leading(width)
+  defp format_item(item, width), do: item |> inspect() |> String.pad_trailing(width)
 
   ## Callbacks
 
@@ -733,13 +790,7 @@ defmodule Ecto.Adapters.SQL do
               source: source, params: params, count: num_rows, operation: operation
 
       {:error, err} ->
-        # TODO: Deprecate to_constraints should be removed in future versions
-        if function_exported?(conn, :to_constraints, 1) do
-          conn.to_constraints(err)
-        else
-          conn.to_constraints(err, source: source)
-        end
-        |> case do
+        case conn.to_constraints(err, source: source) do
           [] -> raise_sql_call_error err
           constraints -> {:invalid, constraints}
         end
@@ -781,27 +832,7 @@ defmodule Ecto.Adapters.SQL do
   end
 
   @doc false
-  def lock_for_migrations(meta, query, opts, migration_lock, fun) do
-    %{opts: adapter_opts} = meta
-
-    if lock = Keyword.get(adapter_opts, :migration_lock, migration_lock) do
-      if Keyword.fetch(adapter_opts, :pool_size) == {:ok, 1} do
-        raise_pool_size_error()
-      end
-
-      {:ok, result} =
-        transaction(meta, opts ++ [log: false, timeout: :infinity], fn ->
-          query |> Map.put(:lock, lock) |> fun.()
-        end)
-
-      result
-    else
-      fun.(query)
-    end
-  end
-
-  @doc false
-  def raise_pool_size_error do
+  def raise_migration_pool_size_error do
     raise Ecto.MigrationError, """
     Migrations failed to run because the connection pool size is less than 2.
 
